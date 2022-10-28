@@ -4,11 +4,8 @@ require "open3"
 require "securerandom"
 require "shellwords"
 require "sinatra/base"
-require "sinatra/streaming"
 
 class App < Sinatra::Base
-  helpers Sinatra::Streaming
-
   before do
     request.env["HTTP_X_REQUEST_ID"] ||= SecureRandom.hex(4)
   end
@@ -41,7 +38,7 @@ class App < Sinatra::Base
 
     stdin, stdout, stderr, wait_thr = Open3.popen3(command)
 
-    stream do |output_stream|
+    stream_body = lambda do |output_stream|
       output_thread = Thread.new do
         begin
           loop do
@@ -77,7 +74,11 @@ class App < Sinatra::Base
       stdout.close
       stderr.close
       log "Completed"
+    ensure
+      output_stream.close
     end
+
+    body stream_body
   end
 
   helpers do
